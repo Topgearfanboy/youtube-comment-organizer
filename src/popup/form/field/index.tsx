@@ -7,7 +7,7 @@ interface FieldProps {
 
 export const Field: React.FC<FieldProps> = ({ label, children }) => (
   <div className="mb-4">
-    <label className="text-white/50 text-[10px] uppercase tracking-widest block mb-1.5">
+    <label className="text-stone-600 text-[10px] uppercase tracking-widest block mb-1.5 font-semibold">
       {label}
     </label>
     {children}

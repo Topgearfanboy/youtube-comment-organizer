@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Field } from "./field";
 
 interface FormData {
   url: string;
+  videoId: string;
   timestamp: string;
   comment: string;
 }
@@ -13,16 +14,98 @@ const inputClass =
 export const Form: React.FC<{}> = () => {
   const [formData, setFormData] = useState<FormData | null>(null);
   const [url, setUrl] = useState("");
+  const [videoId, setVideoId] = useState("");
   const [timestamp, setTimestamp] = useState("");
   const [comment, setComment] = useState("");
 
-  const handleSubmit = () => {
-    setFormData({ url, timestamp, comment });
+  useEffect(() => {
+    // Get current tab URL and video time if YouTube
+    const getCurrentTab = async () => {
+      try {
+        const [tab] = await chrome.tabs.query({
+          active: true,
+          currentWindow: true,
+        });
+        if (tab?.url) {
+          setUrl(tab.url);
+
+          // Extract video ID from YouTube URL
+          const videoIdMatch = tab.url.match(
+            /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&]+)/,
+          );
+          if (videoIdMatch) {
+            setVideoId(videoIdMatch[1]);
+          }
+
+          // Check if it's a YouTube video and get current time
+          if (tab.url.includes("youtube.com/watch")) {
+            console.log("YouTube video detected");
+            // Execute script to get video time
+            chrome.scripting.executeScript(
+              {
+                target: { tabId: tab.id! },
+                func: () => {
+                  const video = document.querySelector("video");
+                  console.log("Video element found:", !!video);
+                  if (video) {
+                    console.log("Video currentTime:", video.currentTime);
+                    return Math.floor(video.currentTime);
+                  }
+                  return null;
+                },
+              },
+              (results) => {
+                console.log("Script execution results:", results);
+                if (results?.[0]?.result) {
+                  const seconds = results[0].result;
+                  console.log("Video time in seconds:", seconds);
+                  const hours = Math.floor(seconds / 3600);
+                  const minutes = Math.floor((seconds % 3600) / 60);
+                  const remainingSeconds = seconds % 60;
+                  const timeString = `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${remainingSeconds.toString().padStart(2, "0")}`;
+                  console.log("Formatted time string:", timeString);
+                  setTimestamp(timeString);
+                } else {
+                  console.log("No video time found");
+                }
+              },
+            );
+          } else {
+            console.log("Not a YouTube video");
+          }
+        }
+      } catch (error) {
+        console.error("Error accessing Chrome tabs API:", error);
+      }
+    };
+
+    getCurrentTab();
+  }, []);
+
+  const handleSubmit = async () => {
+    const formData = { url, videoId, timestamp, comment };
+    setFormData(formData);
+
+    // Save to Chrome local storage
+    try {
+      const existingData = await chrome.storage.local.get(["savedMoments"]);
+      const savedMoments = existingData.savedMoments || [];
+      savedMoments.push({
+        ...formData,
+        id: Date.now().toString(),
+        createdAt: new Date().toISOString(),
+      });
+
+      await chrome.storage.local.set({ savedMoments });
+      console.log("Data saved to local storage:", formData);
+    } catch (error) {
+      console.error("Error saving to local storage:", error);
+    }
   };
 
   return (
-    <div className="bg-gradient-to-br from-stone-100 via-slate-50 to-stone-200 min-h-screen flex items-center justify-center p-4 font-serif">
-      <div className="bg-white border border-stone-200 rounded-3xl p-7 w-[300px] shadow-lg">
+    <div className="bg-transparent min-h-screen flex items-start justify-center font-serif">
+      <div className="bg-white rounded-3xl p-7 w-[300px]">
         <div className="mb-6">
           <h2 className="text-stone-800 text-lg font-semibold tracking-wide">
             Save Moment
@@ -42,11 +125,22 @@ export const Form: React.FC<{}> = () => {
           />
         </Field>
 
+        <Field label="Video ID">
+          <input
+            type="text"
+            value={videoId}
+            onChange={(e) => setVideoId(e.target.value)}
+            placeholder="dQw4w9WgXcQ"
+            className={inputClass}
+          />
+        </Field>
+
         <Field label="Timestamp">
           <input
-            type="time"
+            type="text"
             value={timestamp}
             onChange={(e) => setTimestamp(e.target.value)}
+            placeholder="00:00:00"
             className={`${inputClass} [color-scheme:light]`}
           />
         </Field>
