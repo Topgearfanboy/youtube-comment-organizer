@@ -1,18 +1,14 @@
-import React from 'react'
-import ReactDOM from 'react-dom'
-import '../styles/global.css'
-import './popup.css'
-import { Button } from "@/components/ui/button"
+import React from "react";
+import ReactDOM from "react-dom";
+import "../styles/global.css";
+import "./popup.css";
+import { Form } from "./form";
 
-const App: React.FC<{}> = () => {
-  return (
-    <div>
-      <h1 className='text-red-500 text-xl'>Hello World</h1>
-      <Button variant="outline">Button</Button>
-    </div>
-  )
-}
-
-const root = document.createElement('div')
-document.body.appendChild(root)
-ReactDOM.render(<App />, root)
+export const App: React.FC = () => (
+  <>
+    <Form />
+  </>
+);
+const root = document.createElement("div");
+document.body.appendChild(root);
+ReactDOM.render(<App />, root);
